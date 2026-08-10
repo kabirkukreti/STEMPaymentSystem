@@ -1,0 +1,28 @@
+item,price,emoji,category,type,rating
+Paneer Tikka,220,🍢,Starter,veg,4.6
+Veg Spring Rolls,160,🥟,Starter,veg,4.4
+Chicken Wings,260,🍗,Starter,non-veg,4.7
+Fish Fingers,280,🐟,Starter,non-veg,4.5
+Egg Devil,150,🥚,Starter,egg,4.3
+Garlic Bread,140,🥖,Starter,veg,4.4
+Veg Burger,180,🍔,Main Course,veg,4.5
+Paneer Wrap,190,🌯,Main Course,veg,4.4
+Margherita Pizza,260,🍕,Main Course,veg,4.6
+Veg Biryani,220,🍚,Main Course,veg,4.5
+Chicken Biryani,280,🍗,Main Course,non-veg,4.7
+Chicken Burger,240,🍔,Main Course,non-veg,4.6
+Egg Fried Rice,210,🍳,Main Course,egg,4.3
+Masala Omelette,130,🍳,Main Course,egg,4.4
+Paneer Tacos,210,🌮,Main Course,veg,4.5
+Fresh Lime Soda,90,🍋,Beverage,veg,4.4
+Mango Smoothie,150,🥭,Beverage,veg,4.6
+Cold Coffee,140,🥤,Beverage,veg,4.5
+Masala Chai,70,☕,Beverage,veg,4.3
+Iced Tea,100,🧋,Beverage,veg,4.4
+Chocolate Milkshake,180,🥤,Beverage,veg,4.7
+Chocolate Brownie,140,🍫,Dessert,veg,4.6
+Gulab Jamun,100,🍮,Dessert,veg,4.5
+Ice Cream Sundae,160,🍨,Dessert,veg,4.7
+Fruit Custard,120,🍓,Dessert,veg,4.3
+Eggless Cheesecake,190,🍰,Dessert,veg,4.6
+Chocolate Waffle,170,🧇,Dessert,veg,4.5
