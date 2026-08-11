@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: transparent;
+        }
+
+        #otp-boxes {
+            display: flex;
+            gap: 7px;
+            max-width: 330px;
+        }
+
+        input {
+            width: 44px;
+            height: 46px;
+            border: 1px solid #9ca3af;
+            border-radius: 8px;
+            background: white;
+            color: #003B70;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+        }
+
+        input:focus {
+            border: 2px solid #056DAE;
+            box-shadow: 0 0 0 2px #056DAE22;
+        }
+
+        @media (max-width:420px) {
+            #otp-boxes {
+                gap: 5px;
+            }
+
+            input {
+                width: 39px;
+                height: 43px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="otp-boxes">
+        <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="OTP digit 1" autofocus>
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 2">
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 3">
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 4">
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 5">
+        <input inputmode="numeric" maxlength="1" aria-label="OTP digit 6">
+    </div>
+    <script>
+        const inputs = Array.from(document.querySelectorAll("#otp-boxes input"));
+        let resetToken = null;
+
+        function send(type, data = {}) {
+            window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, "*");
+        }
+        function setFrameHeight() {
+            send("streamlit:setFrameHeight", { height: document.body.scrollHeight });
+        }
+        function value() {
+            return inputs.map(input => input.value).join("");
+        }
+        function reportCompletedValue() {
+            const otp = value();
+            if (otp.length === 6) {
+                send("streamlit:setComponentValue", { value: otp, dataType: "json" });
+            }
+        }
+        function clear() {
+            inputs.forEach(input => input.value = "");
+        }
+        function fillFrom(start, text) {
+            const digits = text.replace(/\D/g, "").slice(0, 6 - start).split("");
+            digits.forEach((digit, offset) => inputs[start + offset].value = digit);
+            const target = Math.min(start + digits.length, 5);
+            inputs[target].focus();
+            reportCompletedValue();
+        }
+
+        inputs.forEach((input, i) => {
+            input.addEventListener("input", event => {
+                const digit = event.target.value.replace(/\D/g, "").slice(-1);
+                event.target.value = digit;
+                if (digit && i < 5) inputs[i + 1].focus();
+                reportCompletedValue();
+            });
+
+            input.addEventListener("keydown", event => {
+                if (event.key === "Backspace" && !input.value && i > 0) inputs[i - 1].focus();
+                else if (event.key === "ArrowLeft" && i > 0) { event.preventDefault(); inputs[i - 1].focus(); }
+                else if (event.key === "ArrowRight" && i < 5) { event.preventDefault(); inputs[i + 1].focus(); }
+            });
+
+            input.addEventListener("paste", event => {
+                event.preventDefault();
+                fillFrom(i, event.clipboardData.getData("text"));
+            });
+        });
+
+        window.addEventListener("message", event => {
+            if (event.data?.type !== "streamlit:render") return;
+
+            const nextToken = event.data.args?.reset_token;
+            const initialValue = String(event.data.args?.initial_value || "")
+                .replace(/\D/g, "").slice(0, 6);
+
+            if (resetToken !== null && nextToken !== resetToken) {
+                resetToken = nextToken;
+                clear();
+            } else {
+                resetToken = nextToken;
+            }
+
+            if (initialValue && value() !== initialValue) {
+                clear();
+                initialValue.split("").forEach((digit, index) => inputs[index].value = digit);
+            }
+
+            setFrameHeight();
+        });
+
+        send("streamlit:componentReady", { apiVersion: 1 });
+        setFrameHeight();
+    </script>
+</body>
+
+</html>
