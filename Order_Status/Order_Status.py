@@ -3,8 +3,16 @@ import pandas as pd
 import os
 import time
 
+def render_html(html):
+    """Render HTML as HTML, never as escaped source text."""
+    html = html.strip()
+    if hasattr(st, "html"):
+        st.html(html)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
+
+
 # Page Configuration with a clean centered layout and pizza tab icon
-st.set_page_config(page_title="Food Lab Tracker", page_icon="🍕", layout="centered")
 
 # Store all styling rules in a single source of truth variable
 SHARED_CSS = """
@@ -21,10 +29,13 @@ SHARED_CSS = """
     /* Optimized: Reduced vertical padding to fit within standard height viewports without scrollbars */
     div.block-container {
         padding-top: 0.5rem !important;
-        padding-bottom: 0px !important;
+        padding-bottom: 0.5rem !important;
+        min-height: calc(100vh - 1rem) !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
-        max-width: 700px !important;
+        max-width: 1400px !important;
+        width: 100% !important;
+        margin: 0 auto !important;
     }
 
     /* Global Typography matching Food Lab baseline styling */
@@ -94,6 +105,8 @@ SHARED_CSS = """
     
     /* Compact Dedicated Order Status Bar Card Container */
     .tracker-wrapper {
+        width: 100% !important;
+        box-sizing: border-box !important;
         background: #FFFFFF !important;
         padding: 0.8rem 1.2rem !important;
         border-radius: 14px !important;
@@ -259,6 +272,8 @@ SHARED_CSS = """
 
     /* Compact Profile Content Card Optimization Styles */
     .order-card {
+        width: 100% !important;
+        box-sizing: border-box !important;
         background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         border-radius: 12px !important;
@@ -311,168 +326,591 @@ SHARED_CSS = """
 # Injecting the styles here at root handles the primary window and caching lifecycle.
 st.markdown(SHARED_CSS, unsafe_allow_html=True)
 
-# Target directory path configuration
-CSV_FILE = "C:/Pizza_App_Files/orders.csv"
+# -------------------------------------------------
+# ORDER DATA FROM PAYMENT PAGE
+# -------------------------------------------------
 
-def load_order_data():
-    if not os.path.exists(CSV_FILE):
-        st.error(f"❌ File Not Found: Please ensure your tracking file is placed in `{CSV_FILE}`")
-        return None
-    try:
-        st.cache_data.clear()
-        return pd.read_csv(CSV_FILE, dtype={"order_id": str})
-    except Exception as e:
-        st.error(f"Error reading file: {e}")
-        return None
+def get_order_data():
+    """Read the completed order directly from Payment page session state."""
+    reference_no = st.session_state.get("reference_no", "")
+    order_id = st.session_state.get("order_id", "") or reference_no or "PENDING"
+
+    customer_name = (
+        st.session_state.get("customer_name", "")
+        or st.session_state.get("card_name", "")
+        or "Guest"
+    )
+
+    return {
+        "customer_name": customer_name,
+        "order_id": order_id,
+        "cart": st.session_state.get("cart", []),
+        "subtotal": float(st.session_state.get("subtotal", 0)),
+        "tax": float(st.session_state.get("tax", 0)),
+        "grand_total": float(st.session_state.get("grand_total", 0)),
+        "payment_method": st.session_state.get("payment_method", ""),
+        "reference_no": reference_no,
+    }
+
+
+def render_order_summary(order):
+    """Display the order received from the Payment page."""
+    cart = order["cart"]
+
+    if not cart:
+        st.warning("⚠️ No order information is available from the Payment page.")
+        return
+
+    item_html = ""
+
+    for item in cart:
+        name = item.get("item", "Food Item")
+        qty = int(item.get("qty", 1))
+        price = float(item.get("price", 0))
+        total = price * qty
+
+        item_html += f"""
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            padding:0.65rem 0;
+            border-bottom:1px solid #F1F5F9;
+        ">
+            <div>
+                <div style="color:#002D62;font-weight:700;font-size:0.9rem;">
+                    🍕 {name}
+                </div>
+                <div style="color:#64748B;font-size:0.72rem;margin-top:0.15rem;">
+                    Qty: {qty}
+                </div>
+            </div>
+            <div style="
+                color:#002D62;
+                font-weight:800;
+                font-size:0.85rem;
+                white-space:nowrap;
+            ">
+                ₹ {total:.2f}
+            </div>
+        </div>
+        """
+
+    render_html(f"""
+    <div class="order-card">
+        <span class="card-section-label">Customer Profile</span>
+        <h1 class="card-header-title">Hello, {order["customer_name"]}!</h1>
+
+        <hr class="divider-line"/>
+
+        <span class="card-section-label">
+            Order Summary for #{order["order_id"]}
+        </span>
+
+        <div style="margin-top:0.55rem;">
+            {item_html}
+        </div>
+
+        <div style="margin-top:0.7rem;">
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                padding:0.3rem 0;
+                color:#64748B;
+                font-size:0.78rem;
+            ">
+                <span>Subtotal</span>
+                <strong style="color:#002D62;">
+                    ₹ {order["subtotal"]:.2f}
+                </strong>
+            </div>
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                padding:0.3rem 0;
+                color:#64748B;
+                font-size:0.78rem;
+            ">
+                <span>Tax</span>
+                <strong style="color:#002D62;">
+                    ₹ {order["tax"]:.2f}
+                </strong>
+            </div>
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                padding:0.3rem 0;
+                color:#64748B;
+                font-size:0.78rem;
+            ">
+                <span>Delivery</span>
+                <strong style="color:#16A34A;">FREE</strong>
+            </div>
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                border-top:1px solid #E2E8F0;
+                margin-top:0.45rem;
+                padding-top:0.65rem;
+                color:#002D62;
+                font-size:1rem;
+                font-weight:900;
+            ">
+                <span>Total</span>
+                <span style="color:#0056B3;">
+                    ₹ {order["grand_total"]:.2f}
+                </span>
+            </div>
+        </div>
+
+        <div style="
+            margin-top:0.75rem;
+            padding:0.55rem 0.7rem;
+            background:#EFF6FF;
+            border:1px solid #DBEAFE;
+            border-radius:8px;
+            color:#1E40AF;
+            font-size:0.75rem;
+        ">
+            <strong>Payment:</strong>
+            {order["payment_method"] or "Completed"}
+        </div>
+    </div>
+    """)
+
 
 # Anchor system startup run execution time to trace the 30-second phase states
 if "start_time" not in st.session_state:
     st.session_state["start_time"] = time.time()
 
-# --- Continuous Display Tracker Fragment Container Loop ---
-@st.fragment(run_every="2s")
-def render_live_tracker_dashboard():
-    # 🌟 FIXED DESIGN PATTERN:
-    # Reinjecting the stylesheet at the very first line of the fragment ensures that 
-    # second browser tabs or freshly opened pages render instantly without layout breaks or 4s lag gaps!
-    st.markdown(SHARED_CSS, unsafe_allow_html=True)
-    
-    # Render Brand Layout Title Top Section Header Row
-    st.markdown("""
-<div class="brand-header">
-    <div class="brand-left">
-        <div class="brand-logo-icon">🍕</div>
-        <div>
-            <div class="brand-text-title">Food Lab</div>
-            <div class="brand-text-sub">A STEM Workshop application</div>
+def render_payment_style_header():
+    """Header matching the Payment page Food Lab branding."""
+    render_html("""
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        width:100%;
+        padding:0.2rem 0 0.7rem 0;
+        margin-bottom:0.35rem;
+        box-sizing:border-box;
+        font-family:Arial,sans-serif;
+    ">
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:0.8rem;
+        ">
+            <div style="
+                width:36px;
+                height:36px;
+                border-radius:8px;
+                background:#0056B3;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:#fff;
+                font-size:1.2rem;
+                box-shadow:0 4px 12px rgba(0,86,179,0.1);
+            ">🍴</div>
+
+            <div>
+                <div style="
+                    color:#002D62;
+                    font-weight:800;
+                    font-size:1.4rem;
+                    line-height:1.1;
+                ">Food Lab</div>
+
+                <div style="
+                    color:#64748B;
+                    font-size:0.75rem;
+                    margin-top:0.1rem;
+                ">A STEM Workshop application</div>
+            </div>
+        </div>
+
+        <div style="
+            border:1px solid #D6E4F0;
+            background:#EBF3FA;
+            color:#0056B3;
+            font-weight:700;
+            font-size:0.65rem;
+            padding:0.3rem 0.6rem;
+            border-radius:20px;
+            letter-spacing:0.05em;
+        ">STEM WORKSHOP</div>
+    </div>
+    """)
+
+
+def render_payment_style_progress():
+    """Payment-page-style 6-step progress with Delivery active."""
+    render_html("""
+    <div style="
+        background:#FFFFFF;
+        padding:0.65rem 1rem;
+        border-radius:14px;
+        border:1px solid #E2E8F0;
+        box-shadow:0 1px 3px rgba(0,0,0,0.04);
+        margin-bottom:0.8rem;
+        font-family:Arial,sans-serif;
+        overflow-x:auto;
+    ">
+        <div style="
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-width:650px;
+            gap:8px;
+            color:#64748B;
+            font-size:0.72rem;
+            font-weight:700;
+        ">
+            <div style="text-align:center;color:#16A34A;min-width:55px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#DCFCE7;color:#16A34A;
+                    display:flex;align-items:center;justify-content:center;
+                ">✓</div>
+                Login
+            </div>
+
+            <div style="height:2px;width:38px;background:#86EFAC;"></div>
+
+            <div style="text-align:center;color:#16A34A;min-width:55px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#DCFCE7;color:#16A34A;
+                    display:flex;align-items:center;justify-content:center;
+                ">✓</div>
+                Menu
+            </div>
+
+            <div style="height:2px;width:38px;background:#86EFAC;"></div>
+
+            <div style="text-align:center;color:#16A34A;min-width:55px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#DCFCE7;color:#16A34A;
+                    display:flex;align-items:center;justify-content:center;
+                ">✓</div>
+                Pay
+            </div>
+
+            <div style="height:2px;width:38px;background:#86EFAC;"></div>
+
+            <div style="text-align:center;color:#64748B;min-width:55px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#F1F5F9;color:#64748B;
+                    display:flex;align-items:center;justify-content:center;
+                ">4</div>
+                Bank
+            </div>
+
+            <div style="height:2px;width:38px;background:#E2E8F0;"></div>
+
+            <div style="text-align:center;color:#64748B;min-width:55px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#F1F5F9;color:#64748B;
+                    display:flex;align-items:center;justify-content:center;
+                ">5</div>
+                Receipt
+            </div>
+
+            <div style="height:2px;width:38px;background:#0056B3;"></div>
+
+            <div style="text-align:center;color:#0056B3;min-width:65px;">
+                <div style="
+                    width:24px;height:24px;border-radius:50%;
+                    margin:0 auto 4px auto;
+                    background:#DBEAFE;color:#0056B3;
+                    display:flex;align-items:center;justify-content:center;
+                ">6</div>
+                Delivery
+            </div>
         </div>
     </div>
-    <div class="brand-badge-button">
-        Stem Workshop
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    """)
 
-    # Render Stationary 6-Step Layout Page Header Card (No line connections between node checkpoints)
-    st.markdown("""
-<div class="page-header-card">
-    <div class="progress-bar-container" style="max-width: 540px; padding: 0.3rem 0 1rem 0;">
-        <div class="step-node dim-light" style="background-color: #16A34A !important; border-color: #16A34A !important;"><div class="step-label" style="color: #16A34A !important;">Login</div></div>
-        <div class="step-node dim-light"><div class="step-label">Menu</div></div>
-        <div class="step-node dim-light"><div class="step-label">Pay</div></div>
-        <div class="step-node dim-light"><div class="step-label">Bank</div></div>
-        <div class="step-node dim-light"><div class="step-label">Receipt</div></div>
-        <div class="step-node active-highlight"><div class="step-label">Delivery</div></div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
-    df_orders = load_order_data()
-    
-    if df_orders is not None and not df_orders.empty:
-        customer = df_orders['customer_name'].iloc[0]
-        order_id = df_orders['order_id'].iloc[0]
-        pizza_list = df_orders['pizza_details'].tolist()
-        
-        # Calculate exactly how many seconds have ticked past since app execution launched
-        start_time = st.session_state.get("start_time")
+@st.fragment(run_every="2s")
+def render_live_tracker_dashboard():
+    order = get_order_data()
 
-        if start_time is not None:
-            elapsed_seconds = time.time() - start_time
-        else:
-            elapsed_seconds = 0.0
-        
-        # Setup layout dynamic progress variables for Cooking -> On The Way -> Delivered tracking bar
+    # Keep the same application header and workflow progress used by Payment.
+    render_payment_style_header()
+    render_payment_style_progress()
+
+    # Two-column layout:
+    # Left  = order details from Payment page
+    # Right = live delivery tracking
+    left_col, right_col = st.columns([0.85, 1.65], gap="large")
+
+    with left_col:
+        render_order_summary(order)
+
+    with right_col:
+        elapsed_seconds = time.time() - st.session_state["start_time"]
+
         node1_class = "step-node"
         node2_class = "step-node"
         node3_class = "step-node"
-        line_fill_width = "0%"
-        status_msg = ""
-        status = "cooking"
-        
-        # ⏱️ DYNAMIC STATUS TIMER LOGIC - SMOOTH PROGRESS ENHANCEMENT
+
         if elapsed_seconds <= 60:
-            fluid_percentage = (elapsed_seconds / 60.0) * 100
-            line_fill_width = f"{min(fluid_percentage, 100.0):.1f}%"
+            line_fill_width = f"{min((elapsed_seconds / 60.0) * 100, 100.0):.1f}%"
         else:
             line_fill_width = "100%"
 
         if elapsed_seconds <= 30:
             status = "cooking"
             sec_left = 30 - elapsed_seconds
+
             node1_class = "step-node active-blue"
-            status_msg = f"Baking your order items fresh in the oven! Next phase in <b>{sec_left:.0f}s</b>"
-            alert_style_class = "status-alert status-state-active blinking-status"
-            title_badge = '<span class="status-title-tag tag-blue">Cooking</span>'
+
+            status_msg = (
+                "Baking your order items fresh in the oven! "
+                f"Next phase in <b>{sec_left:.0f}s</b>"
+            )
+
+            alert_style_class = (
+                "status-alert status-state-active blinking-status"
+            )
+
+            title_badge = (
+                '<span class="status-title-tag tag-blue">Cooking</span>'
+            )
+
         elif elapsed_seconds <= 60:
             status = "on the way"
             sec_left = 60 - elapsed_seconds
-            node1_class = "step-node dim-light"
+
             node2_class = "step-node active-blue"
-            status_msg = f"Your package is in transit with our delivery pilot! Next phase in <b>{sec_left:.0f}s</b>"
-            alert_style_class = "status-alert status-state-active blinking-status"
-            title_badge = '<span class="status-title-tag tag-blue">In Transit</span>'
+
+            status_msg = (
+                "Your package is in transit with our delivery pilot! "
+                f"Next phase in <b>{sec_left:.0f}s</b>"
+            )
+
+            alert_style_class = (
+                "status-alert status-state-active blinking-status"
+            )
+
+            title_badge = (
+                '<span class="status-title-tag tag-blue">In Transit</span>'
+            )
+
         else:
             status = "delivered"
-            node1_class = "step-node dim-light"
-            node2_class = "step-node dim-light"
             node3_class = "step-node active-blue"
-            status_msg = "Your hot meal has successfully arrived. Enjoy your food!"
+
+            status_msg = (
+                "Your hot meal has successfully arrived. Enjoy your food!"
+            )
+
             alert_style_class = "status-alert status-state-delivered"
-            title_badge = '<span class="status-title-tag tag-green">Delivered</span>'
 
-        # Wrap the template layout call inside a structural layout column to force HTML compilation
-        dashboard_row = st.columns(1)
-        
-        with dashboard_row[0]:
-            # Render DEDICATED SEPARATE 3-Step Delivery Progress Tracker Card Row
-            st.markdown(f"""
-<div class="tracker-wrapper">
-<div class="progress-bar-container" style="max-width: 400px; padding: 1.4rem 0 1.4rem 0 !important;">
-<div class="progress-line"></div>
-<div class="progress-line-fill" style="width: {line_fill_width};"></div>
-<div class="{node1_class}">
-<div class="status-icon-header">👩‍🍳</div>
-<div class="step-label">Cooking</div>
-</div>
-<div class="{node2_class}">
-<div class="status-icon-header">🛵</div>
-<div class="step-label">On The Way</div>
-</div>
-<div class="{node3_class}">
-<div class="status-icon-header">🎁</div>
-<div class="step-label">Delivered</div>
-</div>
-</div>
-<div>
-<div class="{alert_style_class}">
-    {title_badge} <span>{status_msg}</span>
-</div>
-</div>
-</div>
-""", unsafe_allow_html=True)
+            title_badge = (
+                '<span class="status-title-tag tag-green">Delivered</span>'
+            )
 
-            # Build list pills string elements sequentially with enhanced sizing styles
-            pills_html = "".join([f'<span class="item-badge">🍕 {pizza}</span>' for pizza in pizza_list])
+        # Use st.html() instead of st.markdown() for the tracker.
+        # This prevents Streamlit from displaying the HTML source as text.
+        tracker_html = f"""
+        <style>
+            .live-tracker {{
+                width: 100%;
+                box-sizing: border-box;
+                padding: 18px 22px 20px 22px;
+                font-family: Arial, sans-serif;
+                background: #FFFFFF;
+                border-radius: 12px;
+            }}
 
-            # Details Summary Sheet Card Layout - Beautifully nested and scaled up
-            st.markdown(f"""
-<div class="order-card">
-<span class="card-section-label">Customer Profile</span>
-<h1 class="card-header-title">Hello, {customer}!</h1>
-<hr class="divider-line"/>
-<span class="card-section-label">Order Summary for #{order_id}</span>
-<div style="margin-top: 0.4rem; margin-bottom: 0.1rem; display: block;">
-{pills_html}
-</div>
-</div>
-""", unsafe_allow_html=True)
+            .tracker-row {{
+                display: grid;
+                grid-template-columns: 88px minmax(70px, 1fr) 88px minmax(70px, 1fr) 88px;
+                align-items: center;
+                width: 100%;
+                box-sizing: border-box;
+                min-height: 105px;
+            }}
 
-        # Fire balloon celebration upon delivery milestone landing completion
-        if status == "delivered":
-            st.balloons()
-    else:
-        st.warning("⚠️ No active customer records found inside the tracking file database.")
+            .tracker-node {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                min-width: 0;
+                z-index: 3;
+            }}
+
+            .tracker-icon {{
+                width: 52px;
+                height: 52px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #F1F5F9;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                font-size: 25px;
+                line-height: 1;
+                margin-bottom: 7px;
+                box-sizing: border-box;
+            }}
+
+            .tracker-node.active .tracker-icon {{
+                background: #DBEAFE;
+                box-shadow: 0 0 0 5px #EFF6FF;
+            }}
+
+            .tracker-label {{
+                color: #64748B;
+                font-size: 12px;
+                font-weight: 700;
+                white-space: nowrap;
+            }}
+
+            .tracker-node.active .tracker-label {{
+                color: #0056B3;
+            }}
+
+            .tracker-connector {{
+                height: 5px;
+                width: 100%;
+                border-radius: 8px;
+                background: #E2E8F0;
+                position: relative;
+                overflow: hidden;
+            }}
+
+            .tracker-connector-fill {{
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: {line_fill_width};
+                background: #0056B3;
+                border-radius: 8px;
+                transition: width 0.5s ease;
+            }}
+
+            .tracker-message {{
+                width: 100%;
+                box-sizing: border-box;
+                margin-top: 18px;
+                padding: 14px 18px;
+                border-radius: 10px;
+                text-align: center;
+                font-size: 14px;
+                line-height: 1.45;
+            }}
+
+            .tracker-message.active {{
+                background: #EFF6FF;
+                border: 1px solid #BFDBFE;
+                border-left: 5px solid #0056B3;
+                color: #1E40AF;
+            }}
+
+            .tracker-message.delivered {{
+                background: #F0FDF4;
+                border: 1px solid #BBF7D0;
+                border-left: 5px solid #16A34A;
+                color: #166534;
+            }}
+
+            .tracker-badge {{
+                display: inline-block;
+                margin-right: 8px;
+                padding: 3px 8px;
+                border-radius: 4px;
+                background: #DBEAFE;
+                color: #0056B3;
+                font-weight: 800;
+                font-size: 12px;
+            }}
+
+            .tracker-badge.delivered {{
+                background: #DCFCE7;
+                color: #16A34A;
+            }}
+
+            @media (max-width: 700px) {{
+                .live-tracker {{
+                    padding: 14px 8px;
+                }}
+
+                .tracker-row {{
+                    grid-template-columns: 62px minmax(35px, 1fr) 62px minmax(35px, 1fr) 62px;
+                    min-height: 95px;
+                }}
+
+                .tracker-icon {{
+                    width: 44px;
+                    height: 44px;
+                    font-size: 21px;
+                }}
+
+                .tracker-label {{
+                    font-size: 10px;
+                }}
+            }}
+        </style>
+
+        <div class="live-tracker">
+            <div class="tracker-row">
+
+                <div class="tracker-node {"active" if status == "cooking" else ""}">
+                    <div class="tracker-icon">👩‍🍳</div>
+                    <div class="tracker-label">Cooking</div>
+                </div>
+
+                <div class="tracker-connector">
+                    <div class="tracker-connector-fill"
+                         style="width:{line_fill_width};"></div>
+                </div>
+
+                <div class="tracker-node {"active" if status == "on the way" else ""}">
+                    <div class="tracker-icon">🛵</div>
+                    <div class="tracker-label">On The Way</div>
+                </div>
+
+                <div class="tracker-connector">
+                    <div class="tracker-connector-fill"
+                         style="width:{"100%" if status == "delivered" else "0%"};"></div>
+                </div>
+
+                <div class="tracker-node {"active" if status == "delivered" else ""}">
+                    <div class="tracker-icon">🎁</div>
+                    <div class="tracker-label">Delivered</div>
+                </div>
+
+            </div>
+
+            <div class="tracker-message {"delivered" if status == "delivered" else "active"}">
+                {title_badge}
+                <span>{status_msg}</span>
+            </div>
+        </div>
+        """
+
+        st.html(tracker_html)
+
+        # No balloons on the Order Status page; keep the tracker unobstructed.
+
+
 
 # Run the automated single-page dashboard tracking routine
 if __name__ == "__main__":
