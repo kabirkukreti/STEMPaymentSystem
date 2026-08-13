@@ -28,7 +28,7 @@ from pathlib import Path
 import random
 import string
 from textwrap import dedent
-
+import sys
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -78,6 +78,7 @@ def initialise_state():
         "card_number": "",
         "card_name": "",
         "payment_success": False,
+        "show_order_status": False,
     }
 
     for key, value in defaults.items():
@@ -1387,6 +1388,33 @@ def render_success(grand_total):
                 "PAID",
             )
 
+    # -------------------------------------------------
+    # TRACK YOUR ORDER
+    # -------------------------------------------------
+    st.markdown(
+        """
+        <div style="
+            text-align:center;
+            margin-top:18px;
+            margin-bottom:8px;
+            color:#718096;
+            font-size:12px;
+        ">
+            Your payment is complete. You can now track your order.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if st.button(
+        "Track Your Order  →",
+        type="primary",
+        use_container_width=True,
+        key="track_order_button",
+    ):
+        st.session_state["show_order_status"] = True
+        st.rerun()
+
 
 # -------------------------------------------------
 # MAIN ENTRY POINT
@@ -1394,6 +1422,41 @@ def render_success(grand_total):
 
 def render_payment():
     initialise_state()
+
+    # Show Order Status only after the user explicitly chooses
+    # "Track Your Order" from the Payment Successful screen.
+    if st.session_state.get("show_order_status", False):
+        # Load Order Status directly from the sibling folder:
+        # STEMPaymentSystem/Order_Status/order_status.py
+        import importlib.util
+
+        order_status_file = (
+            Path(__file__).resolve().parent.parent
+            / "Order_Status"
+            / "order_status.py"
+        )
+
+        if not order_status_file.exists():
+            st.error(
+                f"Order Status file not found: {order_status_file}"
+            )
+            return
+
+        spec = importlib.util.spec_from_file_location(
+            "order_status_module",
+            str(order_status_file),
+        )
+
+        if spec is None or spec.loader is None:
+            st.error("Unable to load the Order Status module.")
+            return
+
+        order_status_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(order_status_module)
+
+        order_status_module.render_live_tracker_dashboard()
+        return
+
     inject_styles()
 
     cart = st.session_state.get("cart", [])
@@ -1697,3 +1760,4 @@ def render_payment():
         with tip_col:
             render_quick_tip()
 
+import time
