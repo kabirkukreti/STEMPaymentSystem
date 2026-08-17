@@ -135,20 +135,27 @@ def verify_credentials(username: str, password: str, users_df: pd.DataFrame) -> 
 
 
 # -----------------------------------------------------------------------------
-# STATE
+# render_login() - PUBLIC ENTRY POINT
 # -----------------------------------------------------------------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user" not in st.session_state:
-    st.session_state.user = ""
-
-users_df = load_users()
-
-
+# Integration contract:
+#   - On successful login, sets: user, customer_name, logged_in, is_logged_in
+#   - Navigates by setting current_module = "payment"
+#   - Safe to call on every rerun; initializes its own state if missing
 # -----------------------------------------------------------------------------
-# HEADER: logo mark + name + tagline + workshop badge (matches mockup)
-# -----------------------------------------------------------------------------
-st.markdown(
+def render_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "is_logged_in" not in st.session_state:
+        st.session_state.is_logged_in = False
+    if "user" not in st.session_state:
+        st.session_state.user = ""
+    if "customer_name" not in st.session_state:
+        st.session_state.customer_name = ""
+
+    users_df = load_users()
+
+    # ---- HEADER: logo mark + name + tagline + workshop badge ----
+    st.markdown(
 f"""<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.4rem;">
 <div style="display:flex; align-items:center; gap:0.75rem;">
 <div style="width:44px; height:44px; border-radius:10px; background:{NAVY}; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">🍴</div>
@@ -160,60 +167,53 @@ f"""<div style="display:flex; align-items:center; justify-content:space-between;
 <div style="background:{BADGE_BLUE_BG}; color:{BLUE}; font-size:0.72rem; font-weight:700; letter-spacing:0.03em; padding:0.4rem 0.9rem; border-radius:999px; white-space:nowrap;">STEM WORKSHOP</div>
 </div>""",
 unsafe_allow_html=True,
-)
+    )
 
-
-# -----------------------------------------------------------------------------
-# SIX-STEP TRACKER (bordered pill row, matches mockup exactly)
-# -----------------------------------------------------------------------------
-step_items = ""
-for label, state in STEPS:
-    if state == "current":
-        dot, text_color, weight = BLUE, BLUE, "700"
-    elif state == "done":
-        dot, text_color, weight = GREEN, GREEN, "700"
-    else:
-        dot, text_color, weight = "#CBD5E1", "#94A3B8", "500"
-    step_items += f"""<div style="display:flex; align-items:center; gap:0.35rem;">
+    # ---- SIX-STEP TRACKER ----
+    step_items = ""
+    for label, state in STEPS:
+        if state == "current":
+            dot, text_color, weight = BLUE, BLUE, "700"
+        elif state == "done":
+            dot, text_color, weight = GREEN, GREEN, "700"
+        else:
+            dot, text_color, weight = "#CBD5E1", "#94A3B8", "500"
+        step_items += f"""<div style="display:flex; align-items:center; gap:0.35rem;">
 <span style="width:7px; height:7px; border-radius:50%; background:{dot}; display:inline-block;"></span>
 <span style="font-size:0.85rem; font-weight:{weight}; color:{text_color};">{label}</span>
 </div>"""
 
-st.markdown(
+    st.markdown(
 f"""<div style="border:1px solid {BORDER}; border-radius:12px; padding:0.8rem 1.2rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.6rem; margin-bottom:1.6rem;">
 {step_items}
 </div>""",
 unsafe_allow_html=True,
-)
-
-
-# -----------------------------------------------------------------------------
-# LOGGED-IN VIEW
-# -----------------------------------------------------------------------------
-if st.session_state.logged_in:
-    st.markdown(
-f"""<div style="color:{BLUE}; font-size:0.78rem; font-weight:700; letter-spacing:0.05em; margin-bottom:0.3rem;">YOU'RE SIGNED IN</div>
-<h1 style="font-size:2rem; margin:0 0 0.3rem 0;">Welcome back, {st.session_state.user}</h1>
-<p style="color:{MUTED}; font-size:0.95rem; margin:0 0 1.4rem 0;">Head to the menu when you're ready to start ordering.</p>""",
-unsafe_allow_html=True,
     )
-    with st.container(border=True):
+
+    # ---- LOGGED-IN VIEW ----
+    if st.session_state.logged_in:
         st.markdown(
+f"""<div style="color:{BLUE}; font-size:0.78rem; font-weight:700; letter-spacing:0.05em; margin-bottom:0.3rem;">YOU'RE SIGNED IN</div>
+<h1 style="font-size:2rem; margin:0 0 0.3rem 0;">Welcome back, {st.session_state.customer_name}</h1>
+<p style="color:{MUTED}; font-size:0.95rem; margin:0 0 1.4rem 0;">Taking you to payment...</p>""",
+unsafe_allow_html=True,
+        )
+        with st.container(border=True):
+            st.markdown(
 f"""<div style="padding:0.4rem;">
 <span style="background-color:{GREEN}1A; color:{GREEN}; padding:0.3rem 0.85rem; border-radius:999px; font-weight:600; font-size:0.85rem; display:inline-block;">Signed in</span>
 </div>""",
 unsafe_allow_html=True,
-        )
-        if st.button("Log out", key="logout_btn"):
-            st.session_state.logged_in = False
-            st.session_state.user = ""
-            st.rerun()
+            )
+            if st.button("Log out", key="logout_btn"):
+                st.session_state.logged_in = False
+                st.session_state.is_logged_in = False
+                st.session_state.user = ""
+                st.session_state.customer_name = ""
+                st.rerun()
+        return
 
-
-# -----------------------------------------------------------------------------
-# SIGN-IN VIEW
-# -----------------------------------------------------------------------------
-else:
+    # ---- SIGN-IN VIEW ----
     st.markdown(
 f"""<div style="color:{BLUE}; font-size:0.78rem; font-weight:700; letter-spacing:0.05em; margin-bottom:0.3rem;">WELCOME TO THE FOOD LAB</div>
 <h1 style="font-size:2rem; margin:0 0 0.3rem 0;">Sign in to continue</h1>
@@ -237,8 +237,13 @@ unsafe_allow_html=True,
             if not username or not password:
                 st.warning("Please enter both a username and password.")
             elif verify_credentials(username, password, users_df):
-                st.session_state.logged_in = True
+                # Set both naming conventions so any downstream module
+                # (regardless of which key it expects) reads the right value.
                 st.session_state.user = username
+                st.session_state.customer_name = username
+                st.session_state.logged_in = True
+                st.session_state.is_logged_in = True
+                st.session_state.current_module = "payment"
                 st.rerun()
             else:
                 st.error("Incorrect username or password. Try again.")
@@ -251,15 +256,20 @@ unsafe_allow_html=True,
 
         st.markdown('<div style="height:0.3rem;"></div>', unsafe_allow_html=True)
 
-
-# -----------------------------------------------------------------------------
-# FOOTER (matches mockup: left label, right note, divider above)
-# -----------------------------------------------------------------------------
-st.markdown(
+    # ---- FOOTER ----
+    st.markdown(
 f"""<hr style="border:none; border-top:1px solid {BORDER}; margin:2.2rem 0 0.9rem 0;">
 <div style="display:flex; justify-content:space-between; color:{MUTED}; font-size:0.82rem;">
 <span>STEM Workshop</span>
 <span>Educational simulation only</span>
 </div>""",
 unsafe_allow_html=True,
-)
+    )
+
+
+# -----------------------------------------------------------------------------
+# Standalone runner - only fires when this file is run directly
+# (streamlit run login.py), not when another module imports render_login().
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    render_login()
