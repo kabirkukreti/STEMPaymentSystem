@@ -1,43 +1,44 @@
 # =============================================================================
-# login.py - Food Lab | STEM Workshop - Login module
+# module3/login.py - Food Lab | STEM Workshop - Login module
 # =============================================================================
+# Imported by root app.py as: from module3.login import render_login
+#
 # INTEGRATION CONTRACT COMPLIANCE:
 #   - Exposes exactly one callable: render_login()
 #   - Does NOT call st.set_page_config() (root app.py owns this)
-#   - Does NOT inject a <style> block or global CSS (root app.py owns theming;
-#     any styling below is scoped INLINE to individual elements only, so it
-#     can't leak into or override other modules' widgets)
-#   - Does NOT render its own header/step-tracker/navigation (root app.py owns
-#     the shared chrome that wraps every module)
-#   - Reads/writes only shared session_state; never resets state that isn't
-#     its own on every rerun
-#   - users.csv is a repo asset - no external dependency
+#   - Does NOT inject a <style> block (root app.py's inject_theme() already
+#     styles .stButton > button and .stTextInput input app-wide - any inline
+#     styles below are scoped to individual elements only, matched to the
+#     SAME color values as app.py's theme so login doesn't look like a
+#     different app from menu/payment)
+#   - Does NOT render its own header/stepper (root app.py's render_header()
+#     and render_stepper() already do this for current_module in
+#     {"menu", "login"}, before render_login() is called)
+#   - Reads/writes only shared session_state; never touches keys it doesn't
+#     own on every rerun
+#   - users.csv ships inside this module's own folder (module3/users.csv) and
+#     is located via __file__, so it resolves correctly regardless of the
+#     working directory app.py is launched from
 #
 # On successful login, sets:
 #   user, customer_name, logged_in, is_logged_in, current_module = "payment"
-#
-# HOW app.py IS EXPECTED TO USE THIS:
-#
-#   from login import render_login
-#
-#   if not st.session_state.get("logged_in"):
-#       render_login()
-#   elif st.session_state.get("current_module") == "payment":
-#       render_payment()
 # =============================================================================
 
 import os
 import pandas as pd
 import streamlit as st
 
-CSV_FILE = "users.csv"
+# users.csv lives next to this file, not relative to wherever streamlit was
+# launched from - this avoids "file not found" if app.py's cwd differs.
+CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.csv")
 
-# Colors used only for inline styling on elements this module renders
-# directly - not a global stylesheet, so nothing here affects other modules.
-NAVY = "#0B2545"
-BLUE = "#1868DB"
-MUTED = "#64748B"
-GREEN = "#1E8E5A"
+# Matched exactly to app.py's inject_theme() CSS variables, so login text
+# renders in the same colors as the rest of the app:
+#   --blue:#056DAE  --navy:#003B70  --muted:#607D94  --green:#16803C
+NAVY = "#003B70"
+BLUE = "#056DAE"
+MUTED = "#607D94"
+GREEN = "#16803C"
 
 
 # -----------------------------------------------------------------------------
@@ -135,10 +136,10 @@ unsafe_allow_html=True,
 
 # -----------------------------------------------------------------------------
 # Standalone preview only - fires when this file is run directly
-# (streamlit run login.py) for isolated testing. Never runs when app.py
-# imports render_login(), since __name__ won't be "__main__" in that case.
-# Intentionally does NOT call st.set_page_config() or inject CSS, so what
-# you see here matches exactly what app.py will render once integrated.
+# (streamlit run module3/login.py), never when app.py imports render_login().
+# Intentionally does NOT call st.set_page_config() or inject CSS, so this
+# preview looks plainer than the integrated version - that's expected, since
+# app.py's shared theme is what makes it match the rest of the app.
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     render_login()
