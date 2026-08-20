@@ -53,10 +53,24 @@ def normalise_order_state() -> None:
         item["qty"] = quantity
     st.session_state["cart"] = cart
 
-    if st.session_state.get("grand_total", 0) == 0 and st.session_state.get("total", 0):
-        st.session_state["grand_total"] = st.session_state["total"]
-    if st.session_state.get("total", 0) == 0 and st.session_state.get("grand_total", 0):
-        st.session_state["total"] = st.session_state["grand_total"]
+    subtotal = round(
+    sum(
+        float(item.get("price", 0))
+        * int(item.get("quantity", item.get("qty", 1)))
+        for item in cart
+    ),
+    2,
+)
+
+tax = round(subtotal * 0.05, 2)
+delivery_charge = 0.0 if subtotal == 0 or subtotal >= 500 else 40.0
+grand_total = round(subtotal + tax + delivery_charge, 2)
+
+st.session_state["subtotal"] = subtotal
+st.session_state["tax"] = tax
+st.session_state["delivery_charge"] = delivery_charge
+st.session_state["total"] = grand_total
+st.session_state["grand_total"] = grand_total
 
     logged_in = bool(st.session_state.get("logged_in") or st.session_state.get("is_logged_in"))
     st.session_state["logged_in"] = logged_in
