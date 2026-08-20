@@ -968,7 +968,7 @@ def render_order_summary(cart, subtotal, tax, grand_total):
 
             <div class="bill-row">
                 <span>Delivery</span>
-                <strong style="color:#16803C;">FREE</strong>
+                <strong style="color:#16803C;">{delivery_text}</strong>
             </div>
 
             <div class="grand-total">
@@ -1463,6 +1463,12 @@ def render_payment():
     subtotal = float(st.session_state.get("subtotal", 0))
     tax = float(st.session_state.get("tax", 0))
     grand_total = float(st.session_state.get("grand_total", 0))
+    delivery_charge = float(st.session_state.get("delivery_charge", 0))
+delivery_text = (
+    "FREE"
+    if delivery_charge == 0
+    else f"₹ {delivery_charge:.2f}"
+)
 
     render_header()
     render_progress()
@@ -1550,7 +1556,7 @@ def render_payment():
 
                     <div class="bill-row">
                         <span>Delivery</span>
-                        <strong style="color:#16803C;">FREE</strong>
+                        <strong style="color:#16803C;">{delivery_text}</strong>
                     </div>
 
                     <div class="grand-total">
@@ -1718,7 +1724,7 @@ def render_payment():
 
                     <div class="bill-row">
                         <span>Delivery</span>
-                        <strong style="color:#16803C;">FREE</strong>
+                        <strong style="color:#16803C;">{delivery_text}</strong>
                     </div>
 
                     <div class="grand-total">
