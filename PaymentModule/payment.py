@@ -1464,11 +1464,11 @@ def render_payment():
     tax = float(st.session_state.get("tax", 0))
     grand_total = float(st.session_state.get("grand_total", 0))
     delivery_charge = float(st.session_state.get("delivery_charge", 0))
-delivery_text = (
-    "FREE"
-    if delivery_charge == 0
-    else f"₹ {delivery_charge:.2f}"
-)
+    delivery_text = (
+        "FREE"
+        if delivery_charge == 0
+        else f"₹ {delivery_charge:.2f}"
+    )
 
     render_header()
     render_progress()
